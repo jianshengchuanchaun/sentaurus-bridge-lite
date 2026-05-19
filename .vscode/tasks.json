@@ -1,0 +1,83 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Sentaurus: doctor",
+      "type": "shell",
+      "command": "sentaurus-bridge",
+      "args": [
+        "--env",
+        "${workspaceFolder}/.env",
+        "doctor"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentaurus: SSH shell",
+      "type": "shell",
+      "command": "sentaurus-bridge",
+      "args": [
+        "--env",
+        "${workspaceFolder}/.env",
+        "ssh"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentaurus: run command",
+      "type": "shell",
+      "command": "sentaurus-bridge",
+      "args": [
+        "--env",
+        "${workspaceFolder}/.env",
+        "run",
+        "--",
+        "${input:remoteCommand}"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentaurus: launch Workbench",
+      "type": "shell",
+      "command": "sentaurus-bridge",
+      "args": [
+        "--env",
+        "${workspaceFolder}/.env",
+        "gui",
+        "swb"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentaurus: push workspace",
+      "type": "shell",
+      "command": "sentaurus-bridge",
+      "args": [
+        "--env",
+        "${workspaceFolder}/.env",
+        "push",
+        "${workspaceFolder}"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentaurus: pull results",
+      "type": "shell",
+      "command": "sentaurus-bridge",
+      "args": [
+        "--env",
+        "${workspaceFolder}/.env",
+        "pull"
+      ],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "remoteCommand",
+      "type": "promptString",
+      "description": "Remote Sentaurus command",
+      "default": "sdevice example_des.cmd"
+    }
+  ]
+}
