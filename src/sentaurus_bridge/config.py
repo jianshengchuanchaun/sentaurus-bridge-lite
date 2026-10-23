@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Mapping
 
 
-DEFAULT_TOOLS = ("sentaurus", "sdevice", "sde", "svisual", "swb")
+DEFAULT_TOOLS = ("sdevice", "sde", "svisual", "swb")
 
 
 def default_user_env_path() -> Path:
@@ -68,7 +68,7 @@ def parse_env_file(path: str | Path) -> dict[str, str]:
     p = Path(path).expanduser()
     if not p.is_file():
         raise FileNotFoundError(f".env file not found: {p}")
-    for raw_line in p.read_text(encoding="utf-8").splitlines():
+    for raw_line in p.read_text(encoding="utf-8-sig").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
@@ -132,6 +132,9 @@ class BridgeConfig:
     ssh_cmd: str = "ssh"
     scp_cmd: str = "scp"
     ssh_extra_args: tuple[str, ...] = ()
+    login_shell: bool = True
+    remote_python: str = "python3"
+    desktop_user: str = ""
     env_path: Path | None = None
 
     @classmethod
@@ -156,6 +159,9 @@ class BridgeConfig:
             ssh_cmd=values.get("SB_SSH_CMD", "ssh").strip() or "ssh",
             scp_cmd=values.get("SB_SCP_CMD", "scp").strip() or "scp",
             ssh_extra_args=_split(values.get("SB_SSH_EXTRA_ARGS")),
+            login_shell=_bool(values.get("SB_LOGIN_SHELL"), True),
+            remote_python=values.get("SB_REMOTE_PYTHON", "python3").strip() or "python3",
+            desktop_user=values.get("SB_DESKTOP_USER", "").strip(),
             env_path=env_path,
         )
 
@@ -182,5 +188,6 @@ def load_config(explicit_env: str | Path | None = None, cwd: Path | None = None)
     env_path = resolve_env_path(explicit_env, cwd=cwd)
     values = dict(os.environ)
     if env_path is not None:
-        values.update(parse_env_file(env_path))
+        # Explicit process settings (including MCP client env) take precedence.
+        values = {**parse_env_file(env_path), **values}
     return BridgeConfig.from_mapping(values, env_path=env_path)
