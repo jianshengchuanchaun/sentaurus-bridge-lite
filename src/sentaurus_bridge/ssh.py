@@ -54,6 +54,18 @@ def local_tool_path(tool: str) -> str | None:
     return shutil.which(tool)
 
 
+def subprocess_environment() -> dict[str, str]:
+    """Windows OpenSSH exits 255 silently when an MCP host removes ProgramData."""
+    env = dict(os.environ)
+    if os.name == 'nt' and not any(key.upper() == 'PROGRAMDATA' for key in env):
+        import ctypes
+        directory = ctypes.create_unicode_buffer(32768)
+        # Ask Windows for Common AppData; do not assume a C: drive or path.
+        if ctypes.windll.shell32.SHGetFolderPathW(None, 0x23, None, 0, directory) == 0:
+            env['PROGRAMDATA'] = directory.value
+    return env
+
+
 def build_ssh_base(
     config: BridgeConfig,
     *,
@@ -80,6 +92,7 @@ def build_ssh_base(
     if connect_timeout is not None:
         cmd += ["-o", f"ConnectTimeout={connect_timeout}"]
     cmd += list(config.ssh_extra_args)
+    cmd += ["--"]
     cmd.append(config.target)
     return cmd
 
@@ -94,6 +107,7 @@ def build_scp_base(config: BridgeConfig) -> list[str]:
         cmd += ["-F", os.path.expanduser(os.path.expandvars(config.ssh_config))]
     if config.jump_target:
         cmd += ["-J", config.jump_target]
+    cmd += list(config.ssh_extra_args)
     return cmd
 
 
@@ -126,7 +140,7 @@ def build_remote_payload(
             init = quote_remote(config.sentaurus_init)
             parts.append(
                 f"if [ -f {init} ]; then source {init}; "
-                f"else echo 'Sentaurus init file not found: {config.sentaurus_init}' >&2; exit 86; fi"
+                f"else printf '%s\\n' {quote_remote('Sentaurus init file not found: ' + config.sentaurus_init)} >&2; exit 86; fi"
             )
         if include_setup and config.sentaurus_setup:
             parts.append(config.sentaurus_setup)
@@ -142,6 +156,10 @@ def build_remote_payload(
 
     if include_display and config.display:
         parts.append(f"setenv DISPLAY {quote_remote(config.display)}")
+    if include_setup and config.sentaurus_root:
+        root = config.sentaurus_root.rstrip("/")
+        parts.append(f"setenv STROOT {quote_remote(root)}")
+        parts.append(f"setenv PATH {quote_remote(root + '/bin')}:$PATH")
     if include_setup and config.sentaurus_setup:
         parts.append(config.sentaurus_setup)
     elif include_setup and config.sentaurus_init:
@@ -175,7 +193,8 @@ def build_remote_command(
         interactive_shell=interactive_shell,
     )
     shell = config.remote_shell or "bash"
-    return f"{shell} -lc {quote_remote(payload)}"
+    flag = "-lc" if config.login_shell else "-c"
+    return f"{quote_remote(shell)} {flag} {quote_remote(payload)}"
 
 
 def run_remote(
@@ -200,9 +219,12 @@ def run_remote(
     proc = subprocess.run(
         cmd,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=capture,
         timeout=timeout,
         check=False,
+        env=subprocess_environment(),
     )
     return CommandResult(
         proc.returncode,
@@ -227,7 +249,7 @@ def call_remote(
         include_display=x11,
     )
     cmd = build_ssh_base(config, x11=x11) + [remote_command]
-    return subprocess.call(cmd)
+    return subprocess.call(cmd, env=subprocess_environment())
 
 
 def call_interactive_shell(config: BridgeConfig, *, workdir: str | None = None) -> int:
@@ -240,8 +262,8 @@ def call_interactive_shell(config: BridgeConfig, *, workdir: str | None = None) 
             include_display=False,
             interactive_shell=True,
         )
-        return subprocess.call(build_ssh_base(config, tty=True) + [remote_command])
-    return subprocess.call(build_ssh_base(config, tty=True))
+        return subprocess.call(build_ssh_base(config, tty=True) + [remote_command], env=subprocess_environment())
+    return subprocess.call(build_ssh_base(config, tty=True), env=subprocess_environment())
 
 
 def remote_spec(config: BridgeConfig, remote_path: str) -> str:
@@ -263,14 +285,14 @@ def scp_upload(config: BridgeConfig, local_path: str, remote_dir: str) -> int:
             print(mkdir.stderr, end="")
         return mkdir.returncode
     cmd = build_scp_base(config) + ["-r", local, remote_spec(config, remote_dir.rstrip("/") + "/")]
-    return subprocess.call(cmd)
+    return subprocess.call(cmd, env=subprocess_environment())
 
 
 def scp_pull(config: BridgeConfig, remote_path: str, local_dir: str) -> int:
     local = Path(local_dir).expanduser()
     local.mkdir(parents=True, exist_ok=True)
     cmd = build_scp_base(config) + ["-r", remote_spec(config, remote_path), str(local)]
-    return subprocess.call(cmd)
+    return subprocess.call(cmd, env=subprocess_environment())
 
 
 def ssh_config_block(config: BridgeConfig, alias: str | None = None) -> str:
@@ -284,12 +306,13 @@ def ssh_config_block(config: BridgeConfig, alias: str | None = None) -> str:
     if config.remote_port and config.remote_port != 22:
         lines.append(f"  Port {config.remote_port}")
     if config.ssh_key:
-        lines.append(f"  IdentityFile {os.path.expanduser(os.path.expandvars(config.ssh_key))}")
+        identity = os.path.expanduser(os.path.expandvars(config.ssh_key)).replace('\\', '/')
+        lines.append('  IdentityFile "' + identity.replace('"', '\\"') + '"')
     if config.jump_target:
         lines.append(f"  ProxyJump {config.jump_target}")
     lines += [
-        "  ForwardX11 yes",
-        "  ForwardX11Trusted yes",
+        f"  ForwardX11 {'yes' if config.enable_x11 else 'no'}",
+        f"  ForwardX11Trusted {'yes' if config.enable_x11 else 'no'}",
         "  ServerAliveInterval 30",
     ]
     return "\n".join(lines) + "\n"

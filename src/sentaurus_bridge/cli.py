@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -75,6 +76,11 @@ def _doctor_line(ok: bool, label: str, detail: str = "") -> None:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
+    if args.json:
+        from .api import Bridge
+        result = Bridge(_load(args)).doctor()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result['ok'] else 3
     config = _load(args)
     env_path = resolve_env_path(args.env)
     _doctor_line(env_path is not None, "env file", str(env_path) if env_path else "not found; using process environment")
@@ -233,7 +239,7 @@ def cmd_ssh_config(args: argparse.Namespace) -> int:
     existing = path.read_text(encoding="utf-8") if path.exists() else ""
     path.write_text(_replace_marked_block(existing, alias, block), encoding="utf-8")
     print(f"Wrote SSH config block for Host {alias} to {path}")
-    print("VS Code: install/use Remote - SSH, then connect to this host alias.")
+    print(f"Connect with: ssh {alias} (VS Code Remote - SSH is optional).")
     return 0
 
 
@@ -262,10 +268,50 @@ def cmd_info(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_client_config(args: argparse.Namespace) -> int:
+    from .clients import client_config
+    path = resolve_env_path(args.env) or default_user_env_path()
+    print(client_config(args.client, path, args.local_root, args.python), end='')
+    return 0
+
+
+def cmd_mcp(args: argparse.Namespace) -> int:
+    from .api import Bridge
+    from .mcp_server import create_server
+    create_server(Bridge(_load(args), args.local_root)).run(transport='stdio')
+    return 0
+
+
+def cmd_job(args: argparse.Namespace) -> int:
+    from .api import Bridge
+    bridge = Bridge(_load(args))
+    if args.action == 'submit':
+        command = args.command[1:] if args.command[:1] == ['--'] else args.command
+        if not command:
+            raise ValueError('Provide a tool and arguments after --')
+        result = bridge.submit(command[0], command[1:], args.workdir, args.timeout)
+    elif args.action == 'list':
+        result = bridge.jobs()
+    elif args.action == 'logs':
+        result = bridge.logs(args.job_id, args.max_bytes)
+    else:
+        result = getattr(bridge, args.action)(args.job_id)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_desktop(args: argparse.Namespace) -> int:
+    from .api import Bridge
+    bridge = Bridge(_load(args))
+    result = bridge.desktops() if args.action == 'list' else bridge.open_visual(args.path, not args.no_mesa)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sentaurus-bridge",
-        description="VS Code friendly SSH bridge for remote Sentaurus TCAD VMs.",
+        description="CLI and MCP bridge for remote Sentaurus TCAD. No editor required.",
     )
     parser.add_argument("--env", help="Path to .env file. Default: ./.env, then ~/.sentaurus-bridge/.env")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -280,6 +326,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--timeout", type=int, default=30, help="SSH command timeout in seconds")
     p.add_argument("--batch", action="store_true", help="Use BatchMode=yes for key-only SSH checks")
     p.add_argument("--verbose", action="store_true", help="Print remote probe details")
+    p.add_argument("--json", action="store_true", help="Structured agent diagnostics; requires remote Python 3.6+")
     p.set_defaults(func=cmd_doctor)
 
     p = sub.add_parser("ssh", help="Open an interactive SSH shell with Sentaurus setup loaded")
@@ -317,7 +364,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("local_dir", nargs="?", help="Local destination directory. Default: sentaurus-results")
     p.set_defaults(func=cmd_pull)
 
-    p = sub.add_parser("ssh-config", help="Print or write an SSH config block for VS Code Remote - SSH")
+    p = sub.add_parser("ssh-config", help="Print or write an OpenSSH host alias (any SSH client)")
     p.add_argument("--alias", help="Host alias. Default: SB_SSH_ALIAS")
     p.add_argument("--write", action="store_true", help="Write/update the block in ~/.ssh/config")
     p.add_argument("--path", help="SSH config file path used with --write")
@@ -332,10 +379,50 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("info", help="Print resolved bridge configuration summary")
     p.set_defaults(func=cmd_info)
 
+    from .clients import CLIENTS
+    p = sub.add_parser('client-config', help='Print MCP configuration for an AI client; does not overwrite settings')
+    p.add_argument('client', choices=CLIENTS)
+    p.add_argument('--local-root', default='.', help='Local workspace accessible to MCP file transfers')
+    p.add_argument('--python', help='Python executable containing this installation; defaults to current interpreter')
+    p.set_defaults(func=cmd_client_config)
+
+    p = sub.add_parser('mcp', help='Serve tools over stdio MCP (install the [mcp] extra)')
+    p.add_argument('--local-root', default='.', help='Local workspace for MCP uploads/downloads')
+    p.set_defaults(func=cmd_mcp)
+
+    p = sub.add_parser('job', help='Submit, inspect, read logs or cancel a persistent remote job')
+    job = p.add_subparsers(dest='action', required=True)
+    listing = job.add_parser('list', help='Recover recent job IDs and states')
+    listing.set_defaults(func=cmd_job)
+    submit = job.add_parser('submit')
+    submit.add_argument('-w', '--workdir', default='.', help='Directory relative to SB_REMOTE_WORKDIR')
+    submit.add_argument('--timeout', type=int, default=3600, help='Remote execution deadline in seconds (max 7 days)')
+    submit.add_argument('command', nargs=argparse.REMAINDER)
+    submit.set_defaults(func=cmd_job)
+    for action in ('status', 'logs', 'cancel'):
+        command = job.add_parser(action)
+        command.add_argument('job_id')
+        if action == 'logs':
+            command.add_argument('--max-bytes', type=int, default=16384)
+        command.set_defaults(func=cmd_job)
+
+    p = sub.add_parser('desktop', help='Discover VM X11 sessions and open a TDR on its desktop')
+    desktop = p.add_subparsers(dest='action', required=True)
+    command = desktop.add_parser('list')
+    command.set_defaults(func=cmd_desktop)
+    command = desktop.add_parser('open')
+    command.add_argument('path', help='.tdr path inside SB_REMOTE_WORKDIR')
+    command.add_argument('--no-mesa', action='store_true', help='Use the viewer default driver instead of software rendering')
+    command.set_defaults(func=cmd_desktop)
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Deterministic UTF-8 for Windows clients, pipes and generated config files.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
@@ -343,6 +430,9 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("Interrupted.", file=sys.stderr)
         return 130
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        print(f'Error: {exc}', file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

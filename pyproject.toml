@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentaurus-bridge-lite"
-version = "0.1.0"
-description = "Portable VS Code friendly SSH bridge for running Synopsys Sentaurus TCAD on a remote VM"
+version = "0.2.0"
+description = "Editor-independent CLI and MCP bridge for remote Sentaurus TCAD, AI agents, jobs, and VM desktop visualization"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "sentaurus-bridge-lite contributors"}
 ]
-keywords = ["sentaurus", "tcad", "vscode", "ssh", "eda"]
+keywords = ["sentaurus", "tcad", "mcp", "codex", "ssh", "eda", "codebuddy"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -20,7 +20,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -32,12 +31,20 @@ sentaurus-bridge = "sentaurus_bridge.cli:main"
 sbridge = "sentaurus_bridge.cli:main"
 
 [project.optional-dependencies]
+mcp = ["mcp>=1.26,<2"]
 dev = [
     "pytest>=7",
+    "mcp>=1.26,<2",
+    "tomli>=2; python_version < '3.11'",
+    "PyYAML>=6",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-sentaurus_bridge = ["resources/.env.example"]
+sentaurus_bridge = ["resources/.env.example", "resources/remote_worker.py"]
+
+[project.urls]
+Homepage = "https://github.com/jianshengchuanchaun/sentaurus-bridge-lite"
+Issues = "https://github.com/jianshengchuanchaun/sentaurus-bridge-lite/issues"

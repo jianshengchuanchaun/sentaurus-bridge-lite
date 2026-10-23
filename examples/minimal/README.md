@@ -1,13 +1,24 @@
-# Minimal Remote Run Folder
+# Minimal remote run folder
 
-Put a small Sentaurus project here, then run it from VS Code or the terminal:
+Place your own trusted SDE/SDevice project in a local folder called `my-nmos`:
 
-```powershell
-sentaurus-bridge push examples/minimal ~/sentaurus-work/minimal
-sentaurus-bridge run -w ~/sentaurus-work/minimal -- sdevice your_des.cmd
-sentaurus-bridge pull ~/sentaurus-work/minimal sentaurus-results/minimal
+```bash
+sentaurus-bridge push my-nmos ~/sentaurus-work
+sentaurus-bridge job submit -w my-nmos -- sde -e -l sde.scm
+sentaurus-bridge job status <SDE_JOB_ID>
+sentaurus-bridge job logs <SDE_JOB_ID>
 ```
 
-The bridge intentionally does not ship Synopsys examples or technology files.
-Those are normally licensed/proprietary and should stay on your VM or in your
-private research repository.
+After the SDE job succeeds and the mesh exists, submit SDevice:
+
+```bash
+sentaurus-bridge job submit -w my-nmos -- sdevice sdevice.cmd
+sentaurus-bridge job status <SDEVICE_JOB_ID>
+sentaurus-bridge job logs <SDEVICE_JOB_ID>
+sentaurus-bridge desktop open my-nmos/nmos_msh.tdr
+sentaurus-bridge pull ~/sentaurus-work/my-nmos sentaurus-results
+```
+
+Replace filenames with your project files. No editor is required. The bridge does
+not ship proprietary Synopsys examples, technology files, licenses or private
+measurement data. Keep them in your own project directory.
