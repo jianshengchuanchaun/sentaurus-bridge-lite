@@ -53,6 +53,14 @@ sentaurus-bridge --env /absolute/path/.env client-config codex --local-root /abs
 
 把输出合并到 Codex MCP 设置。Windows 路径可以写成 `C:/TCAD/project/.env`。详见 [客户端接入](docs/AI_CLIENTS.md)。
 
+**Kimi Code CLI / 桌面端**：
+
+```bash
+sentaurus-bridge --env /absolute/path/.env client-config kimi-code --local-root /absolute/path/project
+```
+
+将输出以 UTF-8 合并到项目 `.kimi-code/mcp.json` 的 `mcpServers`，保留其他服务器。进入该项目，在 Kimi 中新建会话，用 `/mcp` 检查连接，然后要求调用 `mcp__sentaurus__bridge_doctor`。CLI 用 `/model` 选择 K3.1 Pro，桌面端用模型选择器；保持思考模式开启。模型与账号由 Kimi 管理，详见 [Kimi 接入说明](docs/AI_CLIENTS.md#kimi-code-cli--桌面端与-k31-pro)。
+
 **官方 DeepSeek Harness**：
 
 ```bash

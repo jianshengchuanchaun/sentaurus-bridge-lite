@@ -5,7 +5,8 @@ from pathlib import Path
 import sys
 
 
-CLIENTS = ('codex', 'codebuddy', 'claude', 'minimax', 'deepseek-harness', 'generic', 'opencode')
+CLIENTS = ('codex', 'codebuddy', 'claude', 'minimax', 'kimi-code', 'kimi',
+           'deepseek-harness', 'generic', 'opencode')
 
 
 def client_config(client: str, env_path: str | Path, local_root: str | Path,
@@ -40,6 +41,13 @@ def client_config(client: str, env_path: str | Path, local_root: str | Path,
         ])
     if client == 'opencode':
         data = {'mcp': {'sentaurus': {'type': 'local', 'command': [command, *args], 'enabled': True}}}
+    elif client in ('kimi-code', 'kimi'):
+        # Kimi infers stdio from command; its per-server timeouts use milliseconds.
+        data = {'mcpServers': {'sentaurus': {
+            'command': command, 'args': args,
+            'cwd': str(Path(local_root).expanduser().resolve()),
+            'startupTimeoutMs': 30000, 'toolTimeoutMs': 360000,
+        }}}
     else:
         data = {'mcpServers': {'sentaurus': {'type': 'stdio', 'command': command, 'args': args}}}
     return json.dumps(data, ensure_ascii=False, indent=2) + '\n'

@@ -35,18 +35,27 @@ def test_client_config_round_trip(client, tmp_path):
         return
     else:
         entry = parsed['mcpServers']['sentaurus']
+    if client in ('kimi-code', 'kimi'):
+        assert entry['cwd'] == str(tmp_path.resolve())
+        assert entry['startupTimeoutMs'] == 30000
+        assert entry['toolTimeoutMs'] == 360000
+        assert 'type' not in entry and 'transport' not in entry
     assert entry['command'] == executable
     assert str(env.resolve()) in entry['args']
     assert '--local-root' in entry['args']
 
 
-def test_real_stdio_mcp_handshake_tools_and_error_result(tmp_path):
+@pytest.mark.parametrize('client', ['direct', 'kimi-code'])
+def test_real_stdio_mcp_handshake_tools_and_error_result(tmp_path, client):
     env_file = tmp_path / 'bridge.env'
     env_file.write_text('SB_REMOTE_HOST=not-connected.invalid\n', encoding='utf-8')
 
     async def exercise():
         parameters = StdioServerParameters(command=sys.executable, args=[
             '-m', 'sentaurus_bridge', '--env', str(env_file), 'mcp', '--local-root', str(tmp_path)])
+        if client == 'kimi-code':
+            entry = json.loads(client_config(client, env_file, tmp_path))['mcpServers']['sentaurus']
+            parameters = StdioServerParameters(command=entry['command'], args=entry['args'], cwd=entry['cwd'])
         async with stdio_client(parameters) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
@@ -57,6 +66,7 @@ def test_real_stdio_mcp_handshake_tools_and_error_result(tmp_path):
                 info = await session.call_tool('bridge_info', {})
                 assert not info.isError
                 assert info.structuredContent['editor_required'] is False
+                assert Path(info.structuredContent['local_workspace']) == tmp_path.resolve()
                 result = await session.call_tool('submit_tool', {'tool': 'bash', 'arguments': []})
                 assert result.isError  # refusal must be an MCP tool error, not a successful dict
                 assert all(tool.inputSchema['type'] == 'object' for tool in tools)

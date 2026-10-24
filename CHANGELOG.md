@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-10-24
+
+- 新增 `client-config kimi-code`（别名 `kimi`），生成 Kimi Code CLI / 桌面端使用的 stdio MCP JSON。
+- Kimi 配置显式设置项目目录、30 秒启动超时及 360 秒工具超时；不写入模型或 API 密钥。
+- 补充 K3.1 Pro / Highspeed 的模型选择、思考模式、MCP 配置位置与连接验证步骤。
+- 使用生成的 Kimi 配置测试真实 stdio MCP 握手、工具发现及调用；更新首页、快速开始和故障排查。
+
 ## 0.2.0 — 2026-10-23
 
 - 将项目定位改为独立 CLI / MCP 的远程 Sentaurus 桥接，VS Code 为可选入口。
