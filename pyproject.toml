@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentaurus-bridge-lite"
-version = "0.2.0"
+version = "0.2.1"
 description = "Editor-independent CLI and MCP bridge for remote Sentaurus TCAD, AI agents, jobs, and VM desktop visualization"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ license = {text = "MIT"}
 authors = [
     {name = "sentaurus-bridge-lite contributors"}
 ]
-keywords = ["sentaurus", "tcad", "mcp", "codex", "ssh", "eda", "codebuddy"]
+keywords = ["sentaurus", "tcad", "mcp", "codex", "ssh", "eda", "codebuddy", "kimi-code"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

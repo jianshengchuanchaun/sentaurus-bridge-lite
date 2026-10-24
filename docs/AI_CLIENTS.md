@@ -49,6 +49,47 @@ MiniMax 也可以作为其他兼容客户端的模型后端。此时应生成**�
 
 依据：[MiniMax Code 项目 MCP](https://github.com/MiniMax-AI/minimax-code/blob/main/packages/local-runtime-v2/docs/project-mcp.md)、[MiniMax 接入 Claude Code](https://platform.minimax.io/docs/coding-plan/claude-code)。模型 ID 和服务地址可能更新，应使用提供商当前文档与账户可用值。
 
+## Kimi Code CLI / 桌面端与 K3.1 Pro
+
+Kimi Code 通过本地 stdio MCP 使用这套桥接，CLI 和桌面端共用 MCP 配置，不需要 VS Code。
+
+```bash
+sentaurus-bridge --env /absolute/path/.env client-config kimi-code --local-root /absolute/path/project
+```
+
+`client-config kimi` 是同一入口的别名。使用安装了 `[mcp]` 的 Python 环境生成配置。输出包含 `mcpServers.sentaurus`，以 UTF-8 合并到以下任一位置，并保留其他服务器：
+
+- 当前项目：工作目录下的 `.kimi-code/mcp.json`。
+- 用户级：`~/.kimi-code/mcp.json`；设置了 `KIMI_CODE_HOME` 时，使用 `$KIMI_CODE_HOME/mcp.json`。
+
+项目同名服务器优先于用户级配置。也可在 Kimi 中通过 `/mcp-config` 管理配置。生成器使用绝对 `command`、`.env` 和 `cwd`，避免桌面启动时工作目录或 PATH 不同；Kimi 从 `command` 推断 stdio，超时字段使用毫秒：
+
+```json
+{
+  "mcpServers": {
+    "sentaurus": {
+      "command": "/absolute/path/to/python",
+      "args": ["-m", "sentaurus_bridge", "--env", "/absolute/path/.env", "mcp", "--local-root", "/absolute/path/project"],
+      "cwd": "/absolute/path/project",
+      "startupTimeoutMs": 30000,
+      "toolTimeoutMs": 360000
+    }
+  }
+}
+```
+
+工具调用超时与仿真运行时间分别管理。`submit_tool` 返回任务 ID 后，SDE / SDevice 在虚拟机后台运行；用 `job_status`、`job_logs` 查询。仿真自身的期限由 `submit_tool` 的 `timeout_seconds` 参数指定。
+
+保存配置后，在项目目录中启动 Kimi 并新建会话（已有会话不会自动注册刚添加的服务器）。按客户端提示信任自己的工作目录，用 `/mcp` 检查连接，再发送：
+
+> 调用 mcp__sentaurus__bridge_info 和 mcp__sentaurus__bridge_doctor，报告版本、连接状态及远程工具检查结果。
+
+**选择 K3.1 Pro**：CLI 输入 `/model`，桌面端使用输入框中的模型选择器。官方模型 ID 为 `k3.1-pro`，高速版为 `k3.1-pro-highspeed`；账号需具备相应权限，K3.1 Pro 系列必须开启思考模式。建议为新模型新建会话。桥接配置不固定模型 ID，也不存储 Kimi 的账号或模型密钥；以后换模型无需修改 SSH 工具。
+
+使用 Kimi 作为其他客户端的模型后端时，按 Kimi 官方说明配置该客户端的模型，再生成它对应的 MCP 配置（如 `client-config opencode`）。本项目没有另行实现 Kimi API 推理循环。
+
+核对日期：2026-10-24。依据：[Kimi MCP 配置](https://www.kimi.com/code/docs/en/kimi-code-cli/customization/mcp.html)、[桌面端 MCP](https://www.kimi.com/code/docs/en/kimi-code-desktop/settings-and-extensions.html)、[模型选择与 K3.1 Pro](https://www.kimi.com/code/docs/kimi-code/models.html)。旧版 Kimi CLI 的配置目录和命令可能不同，应以已安装版本的官方文档为准。配置生成和标准 MCP 握手已验证，未使用 Kimi 账号执行模型请求。
+
 ## 官方 DeepSeek Harness（dsh）
 
 这里接入的是 [DeepSeek 官方开源 Harness](https://github.com/deepseek-ai/deepseek-harness)。它使用 Cordis 插件配置；本项目通过官方 `@deepseek-ai/dsh-mcp-client` 连接，不自建 DeepSeek API 推理循环。

@@ -8,6 +8,14 @@
 - 用 `python -m sentaurus_bridge --env /path/.env doctor --json` 检查远程 Python 与程序路径。
 - 远程 worker 需要 Linux/Python 3.6+；可用 `SB_REMOTE_PYTHON=/path/to/python3` 指定解释器。
 
+## Kimi Code 中看不到 Sentaurus 工具
+
+- 用 `client-config kimi-code` 生成配置，合并到工作目录的 `.kimi-code/mcp.json` 或用户级 `~/.kimi-code/mcp.json`；设置 `KIMI_CODE_HOME` 时检查该目录中的 `mcp.json`。
+- 进入正确项目，新建 Kimi 会话，并按提示确认工作目录信任；旧会话不会自动加载新加的 MCP 服务器。
+- 用 `/mcp` 查看状态、`/mcp-config` 检查配置。同名项目配置会覆盖用户配置，注意旧路径。
+- 若提示未知客户端 `kimi-code`，先升级桥接到 0.2.1 或更新版本；旧版 Kimi CLI 的配置方式请查其对应文档。
+- K3.1 Pro 的选择在 Kimi `/model` 或桌面模型选择器中完成。模型权限或思考模式错误应按 [官方模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 处理；桥接 `.env` 不配置模型账号。
+
 ## 旧 CentOS 的 profile 报错
 
 某些环境在 `/etc/profile` 中引用已删除的软件路径。设置 `SB_LOGIN_SHELL=0`，并通过 `SB_SENTAURUS_ROOT`、`SB_SENTAURUS_INIT` 或 `SB_SENTAURUS_SETUP` 显式初始化。桥接不会修改系统 profile。

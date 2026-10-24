@@ -4,7 +4,7 @@
 
 An editor-independent CLI and MCP bridge for running Synopsys Sentaurus TCAD on a Linux VM or server.
 
-在本机编写模型，通过 SSH 上传到虚拟机，运行 SDE / SDevice，读取日志和结果，再把结构打开到虚拟机桌面。可以使用终端，也可以把同一套工具接到 Codex、CodeBuddy、MiniMax Code、官方 DeepSeek Harness 或其他 MCP 客户端。
+在本机编写模型，通过 SSH 上传到虚拟机，运行 SDE / SDevice，读取日志和结果，再把结构打开到虚拟机桌面。可以使用终端，也可以把同一套工具接到 Codex、CodeBuddy、MiniMax Code、Kimi Code（可选 K3.1 Pro）、官方 DeepSeek Harness 或其他 MCP 客户端。
 
 ## 功能
 
@@ -16,7 +16,7 @@ An editor-independent CLI and MCP bridge for running Synopsys Sentaurus TCAD on 
 
 ```mermaid
 flowchart LR
-    A[Codex / CodeBuddy / MiniMax Code / DeepSeek Harness] -->|MCP stdio| B[Sentaurus Bridge]
+    A[Codex / CodeBuddy / MiniMax Code / Kimi Code / DeepSeek Harness] -->|MCP stdio| B[Sentaurus Bridge]
     C[独立命令行 / Python] --> B
     B -->|SSH + SCP| D[Linux 虚拟机或服务器]
     D --> E[SDE / SDevice 后台任务]
@@ -86,6 +86,7 @@ sentaurus-bridge pull ~/sentaurus-work/my-nmos sentaurus-results
 sentaurus-bridge --env /absolute/path/.env client-config codex --local-root /absolute/path/project
 sentaurus-bridge --env /absolute/path/.env client-config codebuddy --local-root /absolute/path/project
 sentaurus-bridge --env /absolute/path/.env client-config minimax --local-root /absolute/path/project
+sentaurus-bridge --env /absolute/path/.env client-config kimi-code --local-root /absolute/path/project
 sentaurus-bridge --env /absolute/path/.env client-config deepseek-harness --local-root /absolute/path/project
 ```
 
@@ -96,12 +97,15 @@ Windows 支持 `C:/TCAD/project/.env` 这样的绝对路径。生成器只输出
 | Codex CLI / 桌面客户端 | 本地命令行或 stdio MCP | `client-config codex` → TOML |
 | CodeBuddy Code | stdio MCP | `client-config codebuddy` → JSON |
 | MiniMax Code | 项目 MCP；模型在客户端选择 | `client-config minimax` → JSON |
+| **Kimi Code CLI / 桌面端** | stdio MCP；可在客户端选择 K3.1 Pro | `client-config kimi-code`（别名 `kimi`）→ JSON |
 | **官方 DeepSeek Harness（dsh）** | 官方 `dsh-mcp-client` 插件 | `client-config deepseek-harness` → Cordis YAML |
 | Claude Code | stdio MCP，也可按提供商文档配置 MiniMax 等模型后端 | `client-config claude` → JSON |
 | OpenCode | 本地 MCP；模型在客户端选择 | `client-config opencode` → JSON |
 | 其他 MCP 客户端 | 需要支持本地 stdio 工具调用 | `client-config generic` → JSON |
 
-**客户端与模型是两层。** MiniMax、DeepSeek 等模型通过具有工具调用能力的客户端控制桥接。普通网页聊天不会自动获得本机 SSH 权限。本项目不接收模型 API 密钥。
+**客户端与模型是两层。** MiniMax、Kimi、DeepSeek 等模型通过具有工具调用能力的客户端控制桥接。普通网页聊天不会自动获得本机 SSH 权限。本项目不接收模型 API 密钥。
+
+Kimi Code 的配置合并到项目 `.kimi-code/mcp.json` 或用户级 `~/.kimi-code/mcp.json`（设置 `KIMI_CODE_HOME` 时使用该目录）。CLI 用 `/model` 选择 **K3.1 Pro**，桌面端使用模型选择器；保持思考模式开启。模型 ID 为 `k3.1-pro`，高速版为 `k3.1-pro-highspeed`，实际可用性以账号和 [Kimi 官方模型文档](https://www.kimi.com/code/docs/kimi-code/models.html) 为准。
 
 配置适配遵循各客户端官方文档；这不等于所有模型、账号和客户端版本都已做真实 API 测试。详细步骤和验证范围见 [AI 客户端接入](docs/AI_CLIENTS.md) 与 [验证记录](docs/VALIDATION.md)。
 
