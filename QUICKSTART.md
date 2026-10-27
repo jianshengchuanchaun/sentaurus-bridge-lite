@@ -1,5 +1,7 @@
 # 快速开始：终端和 AI 客户端
 
+**简体中文** | [English](QUICKSTART.en.md) · [首页](README.md)
+
 ## 1. 安装
 
 ```bash
