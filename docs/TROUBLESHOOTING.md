@@ -1,5 +1,7 @@
 # 故障排查
 
+**简体中文** | [English](TROUBLESHOOTING.en.md) · [首页](../README.md)
+
 ## SSH 成功，但 MCP 连接失败
 
 - 生成配置时使用安装了 `[mcp]` 的 Python 绝对路径。

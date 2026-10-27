@@ -1,5 +1,7 @@
 # Sentaurus Bridge Lite
 
+**简体中文** | [English](README.en.md)
+
 **让 AI 客户端和命令行直接连接远程 Sentaurus。无需 VS Code。**
 
 An editor-independent CLI and MCP bridge for running Synopsys Sentaurus TCAD on a Linux VM or server.

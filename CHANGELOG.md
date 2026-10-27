@@ -1,5 +1,7 @@
 # Changelog
 
+**简体中文** | [English](CHANGELOG.en.md) · [首页](README.md)
+
 ## 0.2.1 — 2026-10-24
 
 - 新增 `client-config kimi-code`（别名 `kimi`），生成 Kimi Code CLI / 桌面端使用的 stdio MCP JSON。
